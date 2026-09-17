@@ -1,0 +1,46 @@
+# Operating System
+.DS_Store
+Thumbs.db
+*.swp
+*.bak
+*~
+
+# IDE & Editor files
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# Backend (Maven & Spring Boot)
+backend/target/
+backend/out/
+backend/*.log
+backend/.flattened-pom.xml
+
+# Databases & Local Data (H2, SQLite, etc.)
+backend/data/
+data/
+*.mv.db
+*.trace.db
+
+# Uploaded User Media (Preserve directory structure via .gitkeep)
+backend/uploads/*
+!backend/uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+
+# Frontend (Node, Vite, React)
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.log
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.pid

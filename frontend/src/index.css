@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --color-wardrobe-50: #FAF8F5;
+  --color-wardrobe-100: #F4EFEA;
+  --color-wardrobe-200: #E8DFD5;
+  --color-wardrobe-300: #D5C4B1;
+  --color-wardrobe-400: #BFA58C;
+  --color-wardrobe-500: #A48569;
+  --color-wardrobe-600: #8A6A4E;
+  --color-wardrobe-700: #6E523A;
+  --color-wardrobe-800: #533D29;
+  --color-wardrobe-900: #3A2A1B;
+
+  --color-rose-gold-100: #FDF2F0;
+  --color-rose-gold-200: #F9DDD8;
+  --color-rose-gold-400: #E4A59D;
+  --color-rose-gold-500: #D9897E;
+  --color-rose-gold-600: #B8655A;
+
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", Inter, system-ui, sans-serif;
+
+  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.04);
+  --shadow-float: 0 20px 40px -15px rgba(0, 0, 0, 0.08);
+  --shadow-luxury: 0 10px 30px -10px rgba(184, 101, 90, 0.25);
+}
+
+body {
+  background-color: #FAF8F5;
+  color: #1c1917;
+  font-family: var(--font-sans);
+}
+
+/* Custom delicate scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF8F5;
+}
+::-webkit-scrollbar-thumb {
+  background: #D5C4B1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #A48569;
+}
