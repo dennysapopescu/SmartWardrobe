@@ -72,3 +72,30 @@ export interface AiStatus {
   freeTierAvailable: boolean;
   message: string;
 }
+
+export interface UserProfile {
+  id: number;
+  email: string;
+  fullName: string;
+  role: string;
+  createdAt?: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  tokenType: string;
+  user: UserProfile;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalElements: number;
+  totalPages: number;
+  isFirst?: boolean;
+  isLast?: boolean;
+  first?: boolean;
+  last?: boolean;
+  empty?: boolean;
+}

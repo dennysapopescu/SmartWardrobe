@@ -22,8 +22,8 @@ export const ClothingCard: React.FC<ClothingCardProps> = ({
       className="group relative bg-white rounded-2xl overflow-hidden border border-stone-200/80 hover:border-stone-400/80 transition-all duration-300 shadow-soft hover:shadow-float flex flex-col cursor-pointer"
     >
       {/* Top Floating Badges */}
-      <div className="absolute top-3 left-3 right-3 z-10 flex items-center justify-between pointer-events-none">
-        <span className="text-[10px] uppercase tracking-wider font-semibold px-2.5 py-1 rounded-full bg-stone-900/80 text-white backdrop-blur-sm shadow-sm">
+      <div className="absolute top-2.5 left-2.5 right-2.5 z-10 flex items-center justify-between gap-1.5 pointer-events-none">
+        <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-stone-900/85 text-white backdrop-blur-sm shadow-xs truncate max-w-[calc(100%-38px)]">
           {item.category}
         </span>
 
@@ -32,14 +32,14 @@ export const ClothingCard: React.FC<ClothingCardProps> = ({
             e.stopPropagation();
             onToggleFavorite(item.id);
           }}
-          className={`pointer-events-auto w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-transform active:scale-90 ${
+          className={`pointer-events-auto shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-transform active:scale-90 ${
             item.favorite 
               ? 'bg-rose-50 text-rose-500 shadow-sm' 
               : 'bg-white/80 text-stone-400 hover:text-stone-700'
           }`}
           title={item.favorite ? 'Remove from favorites' : 'Add to favorites'}
         >
-          <Heart className={`w-4 h-4 ${item.favorite ? 'fill-current text-rose-500' : ''}`} />
+          <Heart className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${item.favorite ? 'fill-current text-rose-500' : ''}`} />
         </button>
       </div>
 

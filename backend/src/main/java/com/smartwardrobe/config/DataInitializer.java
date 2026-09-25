@@ -18,18 +18,47 @@ import java.util.List;
 public class DataInitializer implements CommandLineRunner {
 
     private final ClothingRepository clothingRepository;
+    private final com.smartwardrobe.auth.UserRepository userRepository;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
     @Override
     public void run(String... args) {
+        ensureDemoUserExists();
         if (clothingRepository.count() == 0) {
-            log.info("Wardrobe is empty. Seeding capsule demo collection with 22 curated pieces into PostgreSQL...");
+            log.info("Wardrobe is empty. Seeding capsule demo collection with curated pieces...");
             seedDemoWardrobe();
             log.info("Capsule wardrobe seeded successfully.");
         }
     }
 
+    public com.smartwardrobe.auth.User ensureDemoUserExists() {
+        return userRepository.findByEmail("demo@smartwardrobe.com").map(existing -> {
+            existing.setPassword(passwordEncoder.encode("password123"));
+            return userRepository.save(existing);
+        }).orElseGet(() -> {
+            com.smartwardrobe.auth.User demoUser = com.smartwardrobe.auth.User.builder()
+                    .email("demo@smartwardrobe.com")
+                    .password(passwordEncoder.encode("password123"))
+                    .fullName("Demo Fashionista")
+                    .role(com.smartwardrobe.auth.Role.ROLE_USER)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            return userRepository.save(demoUser);
+        });
+    }
+
     public void seedDemoWardrobe() {
-        List<ClothingItem> demoItems = Arrays.asList(
+        seedWardrobeForUser(ensureDemoUserExists());
+    }
+
+    public void seedWardrobeForUser(com.smartwardrobe.auth.User user) {
+        List<ClothingItem> demoItems = createDemoItemList();
+        demoItems.forEach(item -> item.setUser(user));
+        clothingRepository.saveAll(demoItems);
+    }
+
+    public List<ClothingItem> createDemoItemList() {
+        return Arrays.asList(
                 // TOPS
                 ClothingItem.builder()
                         .name("Classic White Poplin Shirt")
@@ -442,7 +471,5 @@ public class DataInitializer implements CommandLineRunner {
                         .createdAt(LocalDateTime.now())
                         .build()
         );
-
-        clothingRepository.saveAll(demoItems);
     }
 }

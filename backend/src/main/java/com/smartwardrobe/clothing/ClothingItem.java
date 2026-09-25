@@ -18,6 +18,10 @@ public class ClothingItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private com.smartwardrobe.auth.User user;
+
     @Column(nullable = false)
     private String name;
 

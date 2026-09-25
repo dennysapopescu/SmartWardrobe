@@ -7,6 +7,7 @@ import com.smartwardrobe.clothing.ClothingItem;
 import com.smartwardrobe.clothing.ClothingRepository;
 import com.smartwardrobe.clothing.dto.ClothingResponse;
 import com.smartwardrobe.common.exception.ResourceNotFoundException;
+import com.smartwardrobe.outfit.dto.CustomOutfitReviewRequest;
 import com.smartwardrobe.outfit.dto.OutfitGenerateRequest;
 import com.smartwardrobe.outfit.dto.OutfitResponse;
 import com.smartwardrobe.outfit.rule.*;
@@ -52,7 +53,18 @@ public class OutfitRecommendationService {
     }
 
     public OutfitResponse generateOutfit(OutfitGenerateRequest request, String clientApiKey) {
-        List<ClothingItem> allClothes = clothingRepository.findAll();
+        return generateOutfit(request, clientApiKey, null);
+    }
+
+    public OutfitResponse generateOutfit(OutfitGenerateRequest request, String clientApiKey, com.smartwardrobe.auth.User user) {
+        List<ClothingItem> allClothes = (user != null)
+                ? clothingRepository.findByUser(user)
+                : Collections.emptyList();
+
+        if (allClothes.isEmpty()) {
+            allClothes = clothingRepository.findAll();
+        }
+
         if (allClothes.isEmpty()) {
             throw new IllegalStateException("Your wardrobe is empty! Add clothing items or click 'Load Demo Capsule' to generate outfits.");
         }
@@ -162,6 +174,48 @@ public class OutfitRecommendationService {
                 .build();
     }
 
+    public OutfitResponse reviewCustomOutfit(CustomOutfitReviewRequest request, String clientApiKey) {
+        if (request.getItemIds() == null || request.getItemIds().isEmpty()) {
+            throw new IllegalArgumentException("At least one clothing item must be selected.");
+        }
+
+        List<ClothingItem> selectedItems = request.getItemIds().stream()
+                .map(id -> clothingRepository.findById(id)
+                        .orElseThrow(() -> new ResourceNotFoundException("Clothing item with ID " + id + " was not found.")))
+                .collect(Collectors.toList());
+
+        String occasion = (request.getOccasion() != null && !request.getOccasion().trim().isEmpty())
+                ? request.getOccasion().trim()
+                : "CASUAL";
+
+        WeatherDto weather = weatherService.getCurrentWeather(45.7537, 21.2257, request.getCity() != null ? request.getCity() : "Timisoara");
+        if (request.getOverrideTemperature() != null) {
+            weather.setTemperature(request.getOverrideTemperature());
+            weather.setCold(request.getOverrideTemperature() < 14.0);
+            weather.setHot(request.getOverrideTemperature() >= 25.0);
+        }
+
+        String weatherSummary = String.format("%.1f°C (%s)", weather.getTemperature(), weather.getCondition());
+        AiOutfitAdviceResponse advice = geminiAiService.generateOutfitAdvice(occasion, weatherSummary, selectedItems, clientApiKey);
+
+        String title = (request.getTitle() != null && !request.getTitle().trim().isEmpty())
+                ? request.getTitle().trim()
+                : advice.getTitle();
+
+        return OutfitResponse.builder()
+                .id(null)
+                .name(title)
+                .occasion(occasion)
+                .weatherCondition(weatherSummary)
+                .stylingAdvice(advice.getExplanation())
+                .colorPalette(advice.getColorPalette())
+                .stylingTips(advice.getStylingTips())
+                .favorite(false)
+                .items(selectedItems.stream().map(ClothingResponse::fromEntity).collect(Collectors.toList()))
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
     private void addItem(List<ClothingItem> list, ClothingItem item) {
         if (item != null && !list.contains(item)) {
             list.add(item);
@@ -170,12 +224,18 @@ public class OutfitRecommendationService {
 
     @Transactional
     public OutfitResponse saveOutfit(OutfitResponse draft) {
+        return saveOutfit(draft, null);
+    }
+
+    @Transactional
+    public OutfitResponse saveOutfit(OutfitResponse draft, com.smartwardrobe.auth.User user) {
         List<ClothingItem> items = draft.getItems().stream()
                 .map(i -> clothingRepository.findById(i.getId()).orElse(null))
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
         Outfit outfit = Outfit.builder()
+                .user(user)
                 .name(draft.getName())
                 .occasion(draft.getOccasion())
                 .weatherCondition(draft.getWeatherCondition())
@@ -190,13 +250,29 @@ public class OutfitRecommendationService {
     }
 
     public List<OutfitResponse> getAllSavedOutfits() {
-        return outfitRepository.findAllByOrderByCreatedAtDesc().stream()
+        return getAllSavedOutfits(null);
+    }
+
+    public List<OutfitResponse> getAllSavedOutfits(com.smartwardrobe.auth.User user) {
+        List<Outfit> list = (user != null)
+                ? outfitRepository.findByUserOrderByCreatedAtDesc(user)
+                : outfitRepository.findAllByOrderByCreatedAtDesc();
+
+        return list.stream()
                 .map(OutfitResponse::fromEntity)
                 .collect(Collectors.toList());
     }
 
     public List<OutfitResponse> getFavoriteOutfits() {
-        return outfitRepository.findByFavoriteTrue().stream()
+        return getFavoriteOutfits(null);
+    }
+
+    public List<OutfitResponse> getFavoriteOutfits(com.smartwardrobe.auth.User user) {
+        List<Outfit> list = (user != null)
+                ? outfitRepository.findByUserAndFavoriteTrue(user)
+                : outfitRepository.findByFavoriteTrue();
+
+        return list.stream()
                 .map(OutfitResponse::fromEntity)
                 .collect(Collectors.toList());
     }

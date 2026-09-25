@@ -1,10 +1,14 @@
 package com.smartwardrobe.clothing;
 
+import com.smartwardrobe.auth.User;
 import com.smartwardrobe.clothing.dto.ClothingRequest;
 import com.smartwardrobe.clothing.dto.ClothingResponse;
 import com.smartwardrobe.common.FileStorageService;
+import com.smartwardrobe.common.dto.PageResponse;
 import com.smartwardrobe.common.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,10 +23,56 @@ public class ClothingService {
     private final ClothingRepository clothingRepository;
     private final FileStorageService fileStorageService;
 
-    public List<ClothingResponse> getAllItems() {
-        return clothingRepository.findAll().stream()
+    public PageResponse<ClothingResponse> getClothesPaginated(
+            User user,
+            ClothingCategory category,
+            String search,
+            Boolean favorite,
+            Pageable pageable
+    ) {
+        Page<ClothingItem> page;
+
+        if (user != null) {
+            if (Boolean.TRUE.equals(favorite)) {
+                page = clothingRepository.findByUserAndFavoriteTrue(user, pageable);
+            } else if (category != null) {
+                page = clothingRepository.findByUserAndCategory(user, category, pageable);
+            } else if (search != null && !search.trim().isEmpty()) {
+                page = clothingRepository.searchUserItems(user, search.trim(), pageable);
+            } else {
+                page = clothingRepository.findByUser(user, pageable);
+            }
+        } else {
+            // Unauthenticated / fallback profile
+            if (Boolean.TRUE.equals(favorite)) {
+                List<ClothingItem> list = clothingRepository.findByFavoriteTrue();
+                return PageResponse.from(new org.springframework.data.domain.PageImpl<>(list, pageable, list.size()).map(ClothingResponse::fromEntity));
+            } else if (category != null) {
+                List<ClothingItem> list = clothingRepository.findByCategory(category);
+                return PageResponse.from(new org.springframework.data.domain.PageImpl<>(list, pageable, list.size()).map(ClothingResponse::fromEntity));
+            } else if (search != null && !search.trim().isEmpty()) {
+                List<ClothingItem> list = clothingRepository.searchItems(search.trim());
+                return PageResponse.from(new org.springframework.data.domain.PageImpl<>(list, pageable, list.size()).map(ClothingResponse::fromEntity));
+            } else {
+                page = clothingRepository.findAll(pageable);
+            }
+        }
+
+        return PageResponse.from(page.map(ClothingResponse::fromEntity));
+    }
+
+    public List<ClothingResponse> getAllItems(User user) {
+        List<ClothingItem> items = (user != null)
+                ? clothingRepository.findByUser(user)
+                : clothingRepository.findAll();
+
+        return items.stream()
                 .map(ClothingResponse::fromEntity)
                 .collect(Collectors.toList());
+    }
+
+    public List<ClothingResponse> getAllItems() {
+        return getAllItems(null);
     }
 
     public ClothingResponse getItemById(Long id) {
@@ -53,7 +103,7 @@ public class ClothingService {
     }
 
     @Transactional
-    public ClothingResponse createItem(ClothingRequest request, MultipartFile imageFile) {
+    public ClothingResponse createItem(ClothingRequest request, MultipartFile imageFile, User user) {
         String imageUrl = request.getImageUrl();
         if (imageFile != null && !imageFile.isEmpty()) {
             imageUrl = fileStorageService.storeFile(imageFile);
@@ -62,6 +112,7 @@ public class ClothingService {
         }
 
         ClothingItem item = ClothingItem.builder()
+                .user(user)
                 .name(request.getName())
                 .category(request.getCategory())
                 .subCategory(request.getSubCategory())
@@ -77,6 +128,11 @@ public class ClothingService {
 
         ClothingItem saved = clothingRepository.save(item);
         return ClothingResponse.fromEntity(saved);
+    }
+
+    @Transactional
+    public ClothingResponse createItem(ClothingRequest request, MultipartFile imageFile) {
+        return createItem(request, imageFile, null);
     }
 
     @Transactional

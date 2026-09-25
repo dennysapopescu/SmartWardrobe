@@ -13,7 +13,7 @@ import {
 import confetti from 'canvas-confetti';
 import type { WeatherInfo, Outfit } from '../types/wardrobe';
 import { wardrobeApi } from '../api/wardrobeApi';
-
+import { PinterestFlatLayCollage } from '../components/outfit/PinterestFlatLayCollage';
 import { getFullImageUrl } from '../utils/imageUtils';
 
 interface OutfitGeneratorPageProps {
@@ -507,6 +507,16 @@ export const OutfitGeneratorPage: React.FC<OutfitGeneratorPageProps> = ({
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Pinterest-Style White Studio Flat Lay Moodboard */}
+          <div className="px-6 pb-6 pt-2 border-t border-stone-200/80">
+            <PinterestFlatLayCollage
+              outfitName={generatedOutfit.name}
+              occasion={OCCASIONS.find((o) => o.id === generatedOutfit.occasion)?.label || generatedOutfit.occasion}
+              weatherCondition={generatedOutfit.weatherCondition}
+              items={generatedOutfit.items}
+            />
           </div>
         </div>
       )}

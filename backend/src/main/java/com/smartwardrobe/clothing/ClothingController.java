@@ -1,20 +1,26 @@
 package com.smartwardrobe.clothing;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartwardrobe.auth.User;
 import com.smartwardrobe.clothing.dto.ClothingRequest;
 import com.smartwardrobe.clothing.dto.ClothingResponse;
 import com.smartwardrobe.common.FileStorageService;
+import com.smartwardrobe.common.dto.PageResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import java.util.Map;
 
@@ -29,23 +35,31 @@ public class ClothingController {
     private final FileStorageService fileStorageService;
     private final ObjectMapper objectMapper;
 
-    @Operation(summary = "Get clothing items", description = "Retrieve wardrobe items with optional filtering by category, search query, or favorites")
+    @Operation(summary = "Get paginated clothing items", description = "Retrieve wardrobe items with pagination, sorting, and optional filtering")
     @GetMapping
-    public ResponseEntity<List<ClothingResponse>> getClothes(
+    public ResponseEntity<PageResponse<ClothingResponse>> getClothes(
+            @AuthenticationPrincipal User currentUser,
             @RequestParam(required = false) ClothingCategory category,
             @RequestParam(required = false) String search,
-            @RequestParam(required = false) Boolean favorite
+            @RequestParam(required = false) Boolean favorite,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String sort
     ) {
-        if (Boolean.TRUE.equals(favorite)) {
-            return ResponseEntity.ok(clothingService.getFavoriteItems());
-        }
-        if (category != null) {
-            return ResponseEntity.ok(clothingService.getItemsByCategory(category));
-        }
-        if (search != null && !search.trim().isEmpty()) {
-            return ResponseEntity.ok(clothingService.searchItems(search));
-        }
-        return ResponseEntity.ok(clothingService.getAllItems());
+        String[] sortParts = sort.split(",");
+        Sort.Direction direction = (sortParts.length > 1 && sortParts[1].equalsIgnoreCase("asc"))
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+        String property = sortParts[0].trim();
+        Pageable pageable = PageRequest.of(Math.max(0, page), Math.max(1, size), Sort.by(direction, property));
+
+        return ResponseEntity.ok(clothingService.getClothesPaginated(currentUser, category, search, favorite, pageable));
+    }
+
+    @Operation(summary = "Get all clothing items", description = "Retrieve all items for current user without pagination (for outfit generator & studio)")
+    @GetMapping("/all")
+    public ResponseEntity<List<ClothingResponse>> getAllClothes(@AuthenticationPrincipal User currentUser) {
+        return ResponseEntity.ok(clothingService.getAllItems(currentUser));
     }
 
     @GetMapping("/{id}")
@@ -54,9 +68,12 @@ public class ClothingController {
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<ClothingResponse> createItemJson(@Valid @RequestBody ClothingRequest request) {
+    public ResponseEntity<ClothingResponse> createItemJson(
+            @AuthenticationPrincipal User currentUser,
+            @Valid @RequestBody ClothingRequest request
+    ) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(clothingService.createItem(request, null));
+                .body(clothingService.createItem(request, null, currentUser));
     }
 
     @PostMapping("/upload-image")
@@ -72,6 +89,7 @@ public class ClothingController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ClothingResponse> createItemMultipart(
+            @AuthenticationPrincipal User currentUser,
             @RequestParam(value = "item", required = false) String itemJson,
             @RequestParam(value = "name", required = false) String name,
             @RequestParam(value = "category", required = false) String category,
@@ -114,7 +132,7 @@ public class ClothingController {
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(clothingService.createItem(request, image));
+                .body(clothingService.createItem(request, image, currentUser));
     }
 
     @PutMapping("/{id}")

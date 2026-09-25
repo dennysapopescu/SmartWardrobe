@@ -3,11 +3,13 @@ package com.smartwardrobe.clothing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smartwardrobe.clothing.dto.ClothingResponse;
 import com.smartwardrobe.common.FileStorageService;
+import com.smartwardrobe.common.dto.PageResponse;
 import com.smartwardrobe.common.exception.GlobalExceptionHandler;
 import com.smartwardrobe.common.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -15,9 +17,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
-import java.util.Collections;
 import java.util.List;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -25,6 +27,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ClothingController.class)
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("h2")
 @Import(GlobalExceptionHandler.class)
 class ClothingControllerTest {
@@ -38,11 +41,53 @@ class ClothingControllerTest {
     @MockBean
     private FileStorageService fileStorageService;
 
+    @MockBean
+    private com.smartwardrobe.auth.UserRepository userRepository;
+
+    @MockBean
+    private com.smartwardrobe.auth.JwtService jwtService;
+
     @Autowired
     private ObjectMapper objectMapper;
 
     @Test
-    @DisplayName("GET /api/clothes returns 200 and list of clothing items")
+    @DisplayName("GET /api/clothes returns 200 and paginated clothing items")
+    void testGetClothesPaginated_Returns200() throws Exception {
+        ClothingResponse item = ClothingResponse.builder()
+                .id(1L)
+                .name("Classic White Poplin Shirt")
+                .category(ClothingCategory.TOPS)
+                .subCategory("Shirt")
+                .primaryColor("White")
+                .style("OFFICE")
+                .season("ALL_SEASON")
+                .warmthLevel(2)
+                .favorite(true)
+                .build();
+
+        PageResponse<ClothingResponse> page = PageResponse.<ClothingResponse>builder()
+                .content(List.of(item))
+                .pageNumber(0)
+                .pageSize(12)
+                .totalElements(1)
+                .totalPages(1)
+                .isFirst(true)
+                .isLast(true)
+                .build();
+
+        when(clothingService.getClothesPaginated(any(), any(), any(), any(), any())).thenReturn(page);
+
+        mockMvc.perform(get("/api/clothes"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.content[0].name").value("Classic White Poplin Shirt"))
+                .andExpect(jsonPath("$.content[0].category").value("TOPS"))
+                .andExpect(jsonPath("$.content[0].primaryColor").value("White"))
+                .andExpect(jsonPath("$.totalElements").value(1));
+    }
+
+    @Test
+    @DisplayName("GET /api/clothes/all returns 200 and unpaginated list of items")
     void testGetAllClothes_Returns200() throws Exception {
         ClothingResponse item = ClothingResponse.builder()
                 .id(1L)
@@ -56,14 +101,12 @@ class ClothingControllerTest {
                 .favorite(true)
                 .build();
 
-        when(clothingService.getAllItems()).thenReturn(List.of(item));
+        when(clothingService.getAllItems(any())).thenReturn(List.of(item));
 
-        mockMvc.perform(get("/api/clothes"))
+        mockMvc.perform(get("/api/clothes/all"))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$[0].name").value("Classic White Poplin Shirt"))
-                .andExpect(jsonPath("$[0].category").value("TOPS"))
-                .andExpect(jsonPath("$[0].primaryColor").value("White"));
+                .andExpect(jsonPath("$[0].name").value("Classic White Poplin Shirt"));
     }
 
     @Test

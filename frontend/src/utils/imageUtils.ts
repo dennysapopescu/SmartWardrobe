@@ -3,12 +3,17 @@
  * Runs 100% in-browser on the user's device (zero server cost, 100% free).
  */
 
+const defaultBase = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+  ? `http://${window.location.hostname}:8080`
+  : 'http://localhost:8080';
+const BACKEND_BASE = (import.meta.env.VITE_API_URL || defaultBase).replace(/\/+$/, '');
+
 export function getFullImageUrl(url?: string): string {
   if (!url) return '';
   if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
     return url;
   }
-  return `http://localhost:8080${url.startsWith('/') ? '' : '/'}${url}`;
+  return `${BACKEND_BASE}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
 export async function removeLightBackground(imageFile: File, tolerance: number = 30): Promise<File> {

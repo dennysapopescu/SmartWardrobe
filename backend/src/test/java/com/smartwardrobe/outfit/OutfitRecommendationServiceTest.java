@@ -352,4 +352,42 @@ class OutfitRecommendationServiceTest {
         assertEquals("STREETWEAR", outfitRecommendationService.mapOccasionToStyle("Music Festival Concert"));
         assertEquals("CASUAL", outfitRecommendationService.mapOccasionToStyle("unknown custom occasion"));
     }
+
+    @Test
+    @DisplayName("Review custom outfit evaluates user-selected items with AI advice")
+    void testReviewCustomOutfit_EvaluatesUserSelectedItems() {
+        mockAiAdvice();
+        when(clothingRepository.findById(1L)).thenReturn(java.util.Optional.of(whiteSneakers));
+        when(clothingRepository.findById(4L)).thenReturn(java.util.Optional.of(yogaLeggings));
+
+        WeatherDto weather = WeatherDto.builder().temperature(21.0).condition("Pleasant").build();
+        when(weatherService.getCurrentWeather(any(), any(), any())).thenReturn(weather);
+
+        com.smartwardrobe.outfit.dto.CustomOutfitReviewRequest request = com.smartwardrobe.outfit.dto.CustomOutfitReviewRequest.builder()
+                .title("My Active Look")
+                .occasion("Pilates Studio")
+                .city("Timisoara")
+                .itemIds(List.of(1L, 4L))
+                .build();
+
+        OutfitResponse response = outfitRecommendationService.reviewCustomOutfit(request, null);
+
+        assertNotNull(response);
+        assertEquals("My Active Look", response.getName());
+        assertEquals("Pilates Studio", response.getOccasion());
+        assertEquals(2, response.getItems().size());
+        assertEquals("Great harmony", response.getStylingAdvice());
+    }
+
+    @Test
+    @DisplayName("Review custom outfit throws IllegalArgumentException when item list is empty")
+    void testReviewCustomOutfit_ThrowsWhenNoItems() {
+        com.smartwardrobe.outfit.dto.CustomOutfitReviewRequest request = com.smartwardrobe.outfit.dto.CustomOutfitReviewRequest.builder()
+                .title("Empty")
+                .itemIds(Collections.emptyList())
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () ->
+                outfitRecommendationService.reviewCustomOutfit(request, null));
+    }
 }

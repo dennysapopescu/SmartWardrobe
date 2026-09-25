@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.smartwardrobe.auth.User;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+
 import java.util.Map;
 
 @RestController
@@ -18,13 +21,14 @@ public class DemoController {
     private final ClothingRepository clothingRepository;
 
     @PostMapping("/reset-and-seed")
-    public ResponseEntity<Map<String, Object>> resetAndSeed() {
-        clothingRepository.deleteAll();
-        dataInitializer.seedDemoWardrobe();
+    public ResponseEntity<Map<String, Object>> resetAndSeed(@AuthenticationPrincipal User currentUser) {
+        User targetUser = (currentUser != null) ? currentUser : dataInitializer.ensureDemoUserExists();
+        clothingRepository.deleteByUser(targetUser);
+        dataInitializer.seedWardrobeForUser(targetUser);
         return ResponseEntity.ok(Map.of(
                 "success", true,
-                "message", "Demo capsule wardrobe has been successfully reloaded into PostgreSQL with 22 curated pieces!",
-                "totalItems", clothingRepository.count()
+                "message", "Demo capsule wardrobe has been successfully reloaded with curated pieces!",
+                "totalItems", clothingRepository.countByUser(targetUser)
         ));
     }
 }

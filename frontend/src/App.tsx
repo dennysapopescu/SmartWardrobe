@@ -1,20 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Navbar } from './components/layout/Navbar';
 import { ClosetPage } from './pages/ClosetPage';
 import { OutfitGeneratorPage } from './pages/OutfitGeneratorPage';
+import { CreateOutfitPage } from './pages/CreateOutfitPage';
 import { LookbookPage } from './pages/LookbookPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { AddClothingModal } from './components/upload/AddClothingModal';
+import { AuthModal } from './components/auth/AuthModal';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import type { ClothingItem, Outfit, WeatherInfo } from './types/wardrobe';
 import { wardrobeApi } from './api/wardrobeApi';
 
-export function App() {
-  const [activeTab, setActiveTab] = useState<'closet' | 'generator' | 'lookbook' | 'settings'>('closet');
-  const [clothes, setClothes] = useState<ClothingItem[]>([]);
+function AppContent() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'closet' | 'generator' | 'create' | 'lookbook' | 'settings'>('closet');
+  const [allClothes, setAllClothes] = useState<ClothingItem[]>([]);
   const [savedOutfits, setSavedOutfits] = useState<Outfit[]>([]);
   const [weather, setWeather] = useState<WeatherInfo | null>(null);
-  const [isLoadingClothes, setIsLoadingClothes] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [clothesRefreshSignal, setClothesRefreshSignal] = useState(0);
 
   // Settings state persisted in localStorage
   const [geminiApiKey, setGeminiApiKey] = useState<string>(() => {
@@ -24,47 +28,25 @@ export function App() {
     return localStorage.getItem('smart_wardrobe_city') || 'Timișoara';
   });
 
-  // Load initial data
-  useEffect(() => {
-    loadClothes();
-    loadOutfits();
-    loadWeather(selectedCity);
+  const loadAllClothes = useCallback(async () => {
+    try {
+      const data = await wardrobeApi.getAllClothes();
+      setAllClothes(data);
+    } catch (error) {
+      console.error('Failed to load all clothes:', error);
+    }
   }, []);
 
-  // When city changes, reload weather
-  const handleCityChange = (newCity: string) => {
-    setSelectedCity(newCity);
-    localStorage.setItem('smart_wardrobe_city', newCity);
-    loadWeather(newCity);
-  };
-
-  const handleSaveGeminiKey = (key: string) => {
-    setGeminiApiKey(key);
-    localStorage.setItem('smart_wardrobe_gemini_key', key);
-  };
-
-  const loadClothes = async () => {
-    setIsLoadingClothes(true);
-    try {
-      const data = await wardrobeApi.getClothes();
-      setClothes(data);
-    } catch (error) {
-      console.error('Failed to load clothes:', error);
-    } finally {
-      setIsLoadingClothes(false);
-    }
-  };
-
-  const loadOutfits = async () => {
+  const loadOutfits = useCallback(async () => {
     try {
       const data = await wardrobeApi.getSavedOutfits();
       setSavedOutfits(data);
     } catch (error) {
       console.error('Failed to load outfits:', error);
     }
-  };
+  }, []);
 
-  const loadWeather = async (city: string) => {
+  const loadWeather = useCallback(async (city: string) => {
     try {
       const cityCoords: Record<string, { lat: number; lon: number }> = {
         'Paris': { lat: 48.8566, lon: 2.3522 },
@@ -87,28 +69,40 @@ export function App() {
     } catch (error) {
       console.error('Failed to load weather:', error);
     }
+  }, []);
+
+  // When user session changes, reload all clothes and outfits
+  useEffect(() => {
+    loadAllClothes();
+    loadOutfits();
+    setClothesRefreshSignal((prev) => prev + 1);
+  }, [user, loadAllClothes, loadOutfits]);
+
+  // Initial weather load
+  useEffect(() => {
+    loadWeather(selectedCity);
+  }, [selectedCity, loadWeather]);
+
+  const handleCityChange = (newCity: string) => {
+    setSelectedCity(newCity);
+    localStorage.setItem('smart_wardrobe_city', newCity);
+    loadWeather(newCity);
   };
 
-  const handleToggleFavoriteClothing = async (id: number) => {
-    try {
-      const updated = await wardrobeApi.toggleFavoriteClothing(id);
-      setClothes((prev) => prev.map((item) => (item.id === id ? updated : item)));
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const handleDeleteClothing = async (id: number) => {
-    try {
-      await wardrobeApi.deleteClothing(id);
-      setClothes((prev) => prev.filter((item) => item.id !== id));
-    } catch (error) {
-      console.error(error);
-    }
+  const handleSaveGeminiKey = (key: string) => {
+    setGeminiApiKey(key);
+    localStorage.setItem('smart_wardrobe_gemini_key', key);
   };
 
   const handleItemAdded = (newItem: ClothingItem) => {
-    setClothes((prev) => [newItem, ...prev]);
+    setAllClothes((prev) => [newItem, ...prev]);
+    setClothesRefreshSignal((prev) => prev + 1);
+  };
+
+  const handleSeedDemo = async () => {
+    await wardrobeApi.resetAndSeedDemo();
+    await loadAllClothes();
+    setClothesRefreshSignal((prev) => prev + 1);
   };
 
   const handleOutfitSaved = (saved: Outfit) => {
@@ -141,19 +135,17 @@ export function App() {
         setActiveTab={setActiveTab}
         onOpenAddModal={() => setIsAddModalOpen(true)}
         weather={weather}
-        itemCount={clothes.length}
+        itemCount={allClothes.length}
       />
 
       {/* Main Page Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 pb-24 lg:pb-8">
         {activeTab === 'closet' && (
           <ClosetPage
-            clothes={clothes}
-            onToggleFavorite={handleToggleFavoriteClothing}
-            onDelete={handleDeleteClothing}
             onOpenAddModal={() => setIsAddModalOpen(true)}
-            onSeedDemo={loadClothes}
-            isLoading={isLoadingClothes}
+            onSeedDemo={handleSeedDemo}
+            onItemsChanged={loadAllClothes}
+            refreshSignal={clothesRefreshSignal}
           />
         )}
 
@@ -163,7 +155,18 @@ export function App() {
             onRefreshWeather={() => loadWeather(selectedCity)}
             geminiApiKey={geminiApiKey}
             onOutfitSaved={handleOutfitSaved}
-            totalClothesCount={clothes.length}
+            totalClothesCount={allClothes.length}
+            onNavigateToCloset={() => setActiveTab('closet')}
+          />
+        )}
+
+        {activeTab === 'create' && (
+          <CreateOutfitPage
+            clothes={allClothes}
+            weather={weather}
+            geminiApiKey={geminiApiKey}
+            onOutfitSaved={handleOutfitSaved}
+            onNavigateToLookbook={() => setActiveTab('lookbook')}
             onNavigateToCloset={() => setActiveTab('closet')}
           />
         )}
@@ -181,7 +184,7 @@ export function App() {
           <SettingsPage
             geminiApiKey={geminiApiKey}
             onSaveGeminiApiKey={handleSaveGeminiKey}
-            onSeedDemo={loadClothes}
+            onSeedDemo={handleSeedDemo}
             selectedCity={selectedCity}
             onCityChange={handleCityChange}
           />
@@ -217,6 +220,15 @@ export function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+      <AuthModal />
+    </AuthProvider>
   );
 }
 
