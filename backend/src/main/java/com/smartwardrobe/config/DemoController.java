@@ -19,10 +19,13 @@ public class DemoController {
 
     private final DataInitializer dataInitializer;
     private final ClothingRepository clothingRepository;
+    private final com.smartwardrobe.outfit.OutfitRepository outfitRepository;
 
     @PostMapping("/reset-and-seed")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<Map<String, Object>> resetAndSeed(@AuthenticationPrincipal User currentUser) {
         User targetUser = (currentUser != null) ? currentUser : dataInitializer.ensureDemoUserExists();
+        outfitRepository.deleteByUser(targetUser);
         clothingRepository.deleteByUser(targetUser);
         dataInitializer.seedWardrobeForUser(targetUser);
         return ResponseEntity.ok(Map.of(

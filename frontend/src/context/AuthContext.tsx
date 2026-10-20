@@ -33,8 +33,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setToken(existingToken);
         } catch {
           authApi.logout();
-          setToken(null);
-          setUser(null);
+          try {
+            const res = await authApi.loginDemo();
+            setUser(res.user);
+            setToken(res.token);
+          } catch (demoErr) {
+            console.warn('Fallback demo login failed:', demoErr);
+            setToken(null);
+            setUser(null);
+          }
         }
       } else {
         // Auto-seed / login as demo user for frictionless portfolio reviewing

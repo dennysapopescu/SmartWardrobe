@@ -1,33 +1,45 @@
 # SmartWardrobe
 
-AI-powered digital wardrobe and outfit recommendation platform.
+AI-powered digital wardrobe and context-aware outfit recommendation platform.
 
 [![Java](https://img.shields.io/badge/Java-17-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/17/)
 [![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.4-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Spring Security](https://img.shields.io/badge/Spring_Security-6%20%7C%20JWT-6DB33F?style=flat-square&logo=springsecurity&logoColor=white)](backend/src/main/java/com/smartwardrobe/auth)
 [![Flyway](https://img.shields.io/badge/Flyway-Migrations-CC0202?style=flat-square&logo=flyway&logoColor=white)](backend/src/main/resources/db/migration)
-[![Actuator](https://img.shields.io/badge/Actuator-Health_&_Metrics-6DB33F?style=flat-square&logo=spring&logoColor=white)](http://localhost:8080/actuator/health)
+[![Actuator](https://img.shields.io/badge/Actuator-Health_&_Metrics-6DB33F?style=flat-square&logo=spring&logoColor=white)](#observability--health-checks)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14-316192?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?style=flat-square&logo=docker&logoColor=white)](https://www.docker.com/)
-[![OpenAPI 3](https://img.shields.io/badge/OpenAPI-3.0-85EA2D?style=flat-square&logo=swagger&logoColor=black)](http://localhost:8080/swagger-ui.html)
-[![Tests](https://img.shields.io/badge/Tests-24%20Passing%20%7C%20JaCoCo-brightgreen?style=flat-square&logo=junit5&logoColor=white)](backend/src/test)
+[![OpenAPI 3](https://img.shields.io/badge/OpenAPI-3.0-85EA2D?style=flat-square&logo=swagger&logoColor=black)](#api-documentation)
+[![Tests](https://img.shields.io/badge/Tests-36%20Passing%20%7C%20JaCoCo-brightgreen?style=flat-square&logo=junit5&logoColor=white)](backend/src/test)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-[GitHub Repository](https://github.com/dennysapopescu/SmartWardrobe) · [API Documentation (Swagger UI)](http://localhost:8080/swagger-ui.html) · [Actuator Health](http://localhost:8080/actuator/health)
+[GitHub Repository](https://github.com/dennysapopescu/SmartWardrobe) · [Visual Showcase](#application-showcase) · [Key Features](#key-features) · [Architecture](#architecture) · [API Documentation](#api-documentation) · [Testing & Resilience](#testing)
 
 ---
 
 ## Overview
 
-SmartWardrobe is an enterprise-grade full-stack application for digital wardrobe organization and context-aware outfit recommendations based on live meteorological data, occasion requirements, and visual garment analysis.
+SmartWardrobe is a full-stack digital wardrobe organization and context-aware outfit recommendation platform. It combines live meteorological data, occasion requirements, deterministic color and style scoring, and multimodal AI analysis.
 
 Algorithmic outfit recommendation requires balancing deterministic physical constraints (ambient temperature, weather conditions, dress codes) with stylistic harmony (color theory, silhouette balance). Rather than delegating the entire recommendation workflow to an unconstrained generative model—which frequently hallucinates impractical ensembles such as formal stilettos for workouts or light dresses in sub-zero weather—SmartWardrobe implements a **two-phase hybrid architecture**:
 
 1. **Deterministic Rule & Scoring Engine:** Filters and scores wardrobe items against weather thresholds, occasion dress codes, style affinity, and color compatibility.
 2. **Multimodal LLM Layer:** Leverages Google Gemini Vision for automated item categorization upon image upload and generates stylistic reasoning for the final assembled outfit.
+
+---
+
+## Application Showcase
+
+| Digital Closet Studio | Context-Aware Outfit Generator |
+| :---: | :---: |
+| ![Digital Closet](docs/screenshots/closet.png) <br> *Browse, filter by category, and search wardrobe items with server-side pagination* | ![Outfit Generator](docs/screenshots/outfit-generator.png) <br> *Real-time meteorological forecasts & occasion presets* |
+
+| Editorial Recommendation & AI Advice | Lookbook & Flat Lay Moodboard |
+| :---: | :---: |
+| ![Recommendation Result](docs/screenshots/recommendation-result.png) <br> *Scored ensemble with color harmony & Gemini multimodal stylist review* | ![Saved Lookbook](docs/screenshots/lookbook.png) <br> *Curated collections and Pinterest-style flat lay exports* |
 
 ---
 
@@ -117,6 +129,39 @@ Algorithmic outfit recommendation requires balancing deterministic physical cons
 
 ---
 
+## API Documentation
+
+SmartWardrobe provides interactive OpenAPI 3 (Swagger UI) documentation when running locally or in staging:
+
+- **Swagger UI:** `http://localhost:8080/swagger-ui.html`
+- **OpenAPI JSON Spec:** `http://localhost:8080/v3/api-docs`
+
+### Key Endpoints
+
+| Module | Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- | :--- |
+| **Auth** | `POST` | `/api/auth/register` | Register a new user account | No |
+| | `POST` | `/api/auth/login` | Authenticate and obtain JWT Bearer token | No |
+| | `POST` | `/api/auth/demo` | Instant zero-friction demo login | No |
+| **Closet** | `GET` | `/api/clothes` | Paginated, searchable, category-filtered clothes | Yes (JWT) |
+| | `POST` | `/api/clothes` | Upload & register garment with AI tags | Yes (JWT) |
+| | `GET` | `/api/clothes/{id}` | Retrieve garment by ID (tenant isolated) | Yes (JWT) |
+| | `PATCH` | `/api/clothes/{id}/favorite` | Toggle item favorite status | Yes (JWT) |
+| | `DELETE` | `/api/clothes/{id}` | Delete clothing item (tenant isolated) | Yes (JWT) |
+| **Outfits** | `POST` | `/api/outfits/generate` | Generate context-aware outfit recommendation | Yes (JWT) |
+| | `POST` | `/api/outfits/review-custom` | AI stylist review on custom ensemble | Yes (JWT) |
+| | `POST` | `/api/outfits/save` | Save outfit to Lookbook | Yes (JWT) |
+| | `GET` | `/api/outfits` | List user's saved outfits | Yes (JWT) |
+| | `PATCH` | `/api/outfits/{id}/favorite` | Toggle outfit favorite status (tenant isolated) | Yes (JWT) |
+| | `DELETE` | `/api/outfits/{id}` | Delete saved outfit (tenant isolated) | Yes (JWT) |
+| **AI Vision** | `POST` | `/api/ai/analyze-clothing` | Multimodal garment feature extraction | Yes (JWT) |
+| | `GET` | `/api/ai/status` | Current AI provider status (Gemini / Fallback) | No |
+| **Weather** | `GET` | `/api/weather/current` | Live meteorological conditions via Open-Meteo | No |
+| **Actuator** | `GET` | `/actuator/health` | Application & subsystem health status | No |
+| | `GET` | `/actuator/metrics` | JVM, HTTP, and database operational metrics | No |
+
+---
+
 ## Observability & Health Checks
 
 SmartWardrobe integrates Spring Boot Actuator for health monitoring and operational metrics:
@@ -161,11 +206,11 @@ SmartWardrobe integrates Spring Boot Actuator for health monitoring and operatio
    ```bash
    docker compose up --build
    ```
-3. Access points:
-   - **Frontend UI:** [http://localhost:5173](http://localhost:5173) (or port 80)
-   - **Backend API:** [http://localhost:8080](http://localhost:8080)
-   - **Swagger Docs:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
-   - **Actuator Health:** [http://localhost:8080/actuator/health](http://localhost:8080/actuator/health)
+3. Local access points:
+   - **Frontend UI:** `http://localhost:5173` (or `http://localhost:80` in Docker)
+   - **Backend API:** `http://localhost:8080`
+   - **Swagger Docs:** `http://localhost:8080/swagger-ui.html`
+   - **Actuator Health:** `http://localhost:8080/actuator/health`
    - **PostgreSQL:** `localhost:5432`
 
 ---
@@ -188,9 +233,9 @@ Prerequisites: Java 17+, Node.js 20+, local PostgreSQL 14 instance (or zero-conf
 
 ---
 
-## Testing
+## Testing & Quality Assurance
 
-The backend includes 24 automated unit and integration tests with JaCoCo coverage reporting:
+The backend includes **36 automated unit, integration, and security resilience tests** with JaCoCo coverage reporting:
 
 ```bash
 cd backend
@@ -199,10 +244,18 @@ cd backend
 
 Coverage report generated at `backend/target/site/jacoco/index.html`.
 
-### Test Suite Highlights (24 Tests Passing):
+### Test Suite Highlights (36 Tests Passing):
 - **`AuthControllerTest` (3 tests):** Validates user registration, JWT login authentication, and instant one-click demo token issuance.
-- **`ClothingControllerTest` (4 tests):** Validates authenticated user-scoped paginated queries, favorite toggling, and structured `ApiErrorResponse` validation envelopes.
-- **`OutfitRecommendationServiceTest` (11 tests):** Validates style affinity, cold weather outerwear triggering (< 18°C), hot weather coat exclusions (> 25°C), sport occasion dress exclusion, locked items preservation, and deterministic scoring.
+- **`ClothingControllerTest` (5 tests):** Validates authenticated user-scoped paginated queries, favorite toggling, standard 404 error responses, 403 Forbidden on cross-user modification, and structured RFC-7807 `ApiErrorResponse` validation envelopes.
+- **`SystemResilienceAndEdgeCasesTest` (10 tests):** Comprehensive security isolation and fault tolerance tests:
+  - **Multi-Tenant Wardrobe Isolation:** Verified that User A cannot modify or delete User B's clothing items (`403 Forbidden`).
+  - **Multi-Tenant Lookbook Isolation:** Verified that User A cannot delete or toggle favorite on User B's saved outfits (`403 Forbidden`).
+  - **Owner Authorization:** Verified that legitimate owners can update and delete their own items without obstruction.
+  - **Relational Integrity on Delete:** Verified that deleting a garment cleanly unlinks associations from saved outfits before entity deletion.
+  - **Weather City Resolution & Fallback:** Verified that cities are accurately mapped to geo-coordinates and external Open-Meteo timeouts fallback gracefully.
+  - **Multimodal AI Fallback:** Verified that when Gemini API quota or connection fails, the system seamlessly activates rule-based advice with color palettes and tips.
+  - **Wardrobe Edge Cases:** Verified that empty wardrobes trigger descriptive `IllegalStateException` messages instead of unhandled NullPointerExceptions.
+- **`OutfitRecommendationServiceTest` (12 tests):** Validates style affinity, office dress code enforcement at 14°C (strict rejection of summer slip dresses in favor of tailored trousers and blazers), cold weather outerwear triggering (< 18°C), hot weather coat exclusions (> 25°C), sport occasion dress exclusion, locked items preservation, and deterministic scoring.
 - **`OutfitScoringRulesTest` (5 tests):** Unit tests for `OccasionStyleRule`, `SportyFootwearRule`, `SportyApparelRule`, `WeatherTemperatureRule`, and `ColorHarmonyRule`.
 - **`SmartWardrobeApplicationTests` (1 test):** Full application context and Flyway migration verification backed by an isolated H2 in-memory test database.
 

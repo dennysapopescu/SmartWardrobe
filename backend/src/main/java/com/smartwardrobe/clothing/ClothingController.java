@@ -63,8 +63,11 @@ public class ClothingController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ClothingResponse> getClothingById(@PathVariable Long id) {
-        return ResponseEntity.ok(clothingService.getItemById(id));
+    public ResponseEntity<ClothingResponse> getClothingById(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        return ResponseEntity.ok(clothingService.getItemById(id, currentUser));
     }
 
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
@@ -138,19 +141,26 @@ public class ClothingController {
     @PutMapping("/{id}")
     public ResponseEntity<ClothingResponse> updateItem(
             @PathVariable Long id,
-            @Valid @RequestBody ClothingRequest request
+            @Valid @RequestBody ClothingRequest request,
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(clothingService.updateItem(id, request));
+        return ResponseEntity.ok(clothingService.updateItem(id, request, currentUser));
     }
 
     @PatchMapping("/{id}/favorite")
-    public ResponseEntity<ClothingResponse> toggleFavorite(@PathVariable Long id) {
-        return ResponseEntity.ok(clothingService.toggleFavorite(id));
+    public ResponseEntity<ClothingResponse> toggleFavorite(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        return ResponseEntity.ok(clothingService.toggleFavorite(id, currentUser));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteItem(@PathVariable Long id) {
-        clothingService.deleteItem(id);
+    public ResponseEntity<Void> deleteItem(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        clothingService.deleteItem(id, currentUser);
         return ResponseEntity.noContent().build();
     }
 }

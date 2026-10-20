@@ -14,6 +14,8 @@ import com.smartwardrobe.outfit.rule.*;
 import com.smartwardrobe.weather.WeatherService;
 import com.smartwardrobe.weather.dto.WeatherDto;
 import lombok.extern.slf4j.Slf4j;
+import com.smartwardrobe.auth.User;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,11 +61,7 @@ public class OutfitRecommendationService {
     public OutfitResponse generateOutfit(OutfitGenerateRequest request, String clientApiKey, com.smartwardrobe.auth.User user) {
         List<ClothingItem> allClothes = (user != null)
                 ? clothingRepository.findByUser(user)
-                : Collections.emptyList();
-
-        if (allClothes.isEmpty()) {
-            allClothes = clothingRepository.findAll();
-        }
+                : clothingRepository.findAll();
 
         if (allClothes.isEmpty()) {
             throw new IllegalStateException("Your wardrobe is empty! Add clothing items or click 'Load Demo Capsule' to generate outfits.");
@@ -105,7 +103,7 @@ public class OutfitRecommendationService {
         // Check locked items from request
         if (request.getLockedItemIds() != null && !request.getLockedItemIds().isEmpty()) {
             for (Long lockedId : request.getLockedItemIds()) {
-                clothingRepository.findById(lockedId).ifPresent(selectedItems::add);
+                addItem(selectedItems, findClothingItem(lockedId, user));
             }
         }
 
@@ -119,10 +117,30 @@ public class OutfitRecommendationService {
 
         String targetStyle = mapOccasionToStyle(occasion);
         boolean isSporty = "SPORTY".equalsIgnoreCase(targetStyle);
+        boolean isOffice = "OFFICE".equalsIgnoreCase(targetStyle);
+
+        // Check if there is an actual office-appropriate dress (not a slip dress, cocktail dress, or summer sleepwear)
+        boolean hasOfficeAppropriateDress = byCategory.containsKey(ClothingCategory.DRESSES) &&
+                byCategory.get(ClothingCategory.DRESSES).stream().anyMatch(d -> {
+                    String subCat = (d.getSubCategory() != null) ? d.getSubCategory().toLowerCase() : "";
+                    String dName = (d.getName() != null) ? d.getName().toLowerCase() : "";
+                    boolean isSlipOrCocktail = subCat.contains("slip") || dName.contains("slip") || "PARTY".equalsIgnoreCase(d.getStyle());
+                    return "OFFICE".equalsIgnoreCase(d.getStyle()) && !isSlipOrCocktail;
+                });
 
         // Decide between Dress OR (Top + Bottom)
-        // Never choose a dress for sporty/gym/yoga occasions unless explicitly requested
-        boolean chooseDress = !isSporty && !hasTop && !hasBottom && (hasDress || (byCategory.containsKey(ClothingCategory.DRESSES) && random.nextBoolean()));
+        // 1. Never choose a dress for sporty/gym/yoga occasions
+        // 2. For office occasions, only consider a dress if a real office dress exists; otherwise choose professional tops + bottoms
+        boolean chooseDress;
+        if (hasDress) {
+            chooseDress = true;
+        } else if (hasTop || hasBottom || isSporty) {
+            chooseDress = false;
+        } else if (isOffice) {
+            chooseDress = hasOfficeAppropriateDress && random.nextBoolean();
+        } else {
+            chooseDress = byCategory.containsKey(ClothingCategory.DRESSES) && random.nextBoolean();
+        }
 
         if (chooseDress) {
             if (!hasDress && byCategory.containsKey(ClothingCategory.DRESSES)) {
@@ -175,20 +193,23 @@ public class OutfitRecommendationService {
     }
 
     public OutfitResponse reviewCustomOutfit(CustomOutfitReviewRequest request, String clientApiKey) {
+        return reviewCustomOutfit(request, clientApiKey, null);
+    }
+
+    public OutfitResponse reviewCustomOutfit(CustomOutfitReviewRequest request, String clientApiKey, User user) {
         if (request.getItemIds() == null || request.getItemIds().isEmpty()) {
             throw new IllegalArgumentException("At least one clothing item must be selected.");
         }
 
         List<ClothingItem> selectedItems = request.getItemIds().stream()
-                .map(id -> clothingRepository.findById(id)
-                        .orElseThrow(() -> new ResourceNotFoundException("Clothing item with ID " + id + " was not found.")))
+                .map(id -> findClothingItem(id, user))
                 .collect(Collectors.toList());
 
         String occasion = (request.getOccasion() != null && !request.getOccasion().trim().isEmpty())
                 ? request.getOccasion().trim()
                 : "CASUAL";
 
-        WeatherDto weather = weatherService.getCurrentWeather(45.7537, 21.2257, request.getCity() != null ? request.getCity() : "Timisoara");
+        WeatherDto weather = weatherService.getCurrentWeather(null, null, request.getCity() != null ? request.getCity() : "Timisoara");
         if (request.getOverrideTemperature() != null) {
             weather.setTemperature(request.getOverrideTemperature());
             weather.setCold(request.getOverrideTemperature() < 14.0);
@@ -230,8 +251,7 @@ public class OutfitRecommendationService {
     @Transactional
     public OutfitResponse saveOutfit(OutfitResponse draft, com.smartwardrobe.auth.User user) {
         List<ClothingItem> items = draft.getItems().stream()
-                .map(i -> clothingRepository.findById(i.getId()).orElse(null))
-                .filter(Objects::nonNull)
+                .map(i -> findClothingItem(i.getId(), user))
                 .collect(Collectors.toList());
 
         Outfit outfit = Outfit.builder()
@@ -278,30 +298,63 @@ public class OutfitRecommendationService {
     }
 
     @Transactional
-    public OutfitResponse toggleFavorite(Long id) {
+    public OutfitResponse toggleFavorite(Long id, User user) {
         Outfit outfit = outfitRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Outfit with ID " + id + " was not found."));
+        validateOwnership(outfit, user);
         outfit.setFavorite(!outfit.isFavorite());
         return OutfitResponse.fromEntity(outfitRepository.save(outfit));
     }
 
     @Transactional
+    public OutfitResponse toggleFavorite(Long id) {
+        return toggleFavorite(id, null);
+    }
+
+    @Transactional
+    public void deleteOutfit(Long id, User user) {
+        Outfit outfit = outfitRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Outfit with ID " + id + " was not found."));
+        validateOwnership(outfit, user);
+        outfitRepository.delete(outfit);
+    }
+
+    @Transactional
     public void deleteOutfit(Long id) {
-        if (!outfitRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Outfit with ID " + id + " was not found.");
+        deleteOutfit(id, null);
+    }
+
+    private void validateOwnership(Outfit outfit, User user) {
+        if (user != null && outfit.getUser() != null && !outfit.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("You do not have permission to access or modify this outfit.");
         }
-        outfitRepository.deleteById(id);
+    }
+
+    private ClothingItem findClothingItem(Long id, User user) {
+        ClothingItem item = clothingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Clothing item with ID " + id + " was not found."));
+        if (user != null && item.getUser() != null && !item.getUser().getId().equals(user.getId())) {
+            throw new AccessDeniedException("You do not have permission to use this clothing item.");
+        }
+        return item;
     }
 
     public boolean isWeatherAppropriate(ClothingItem item, WeatherDto weather) {
         if (weather == null) return true;
         int warmth = (item.getWarmthLevel() != null) ? item.getWarmthLevel() : 2;
+        double temp = weather.getTemperature();
 
-        if (weather.isHot()) {
+        if (weather.isHot() || temp >= 25.0) {
             // Temperature >= 25°C: No heavy outerwear
             return warmth <= 2 && item.getCategory() != ClothingCategory.OUTERWEAR;
-        } else if (weather.isCold()) {
-            // Temperature < 14°C: Require warmth >= 2 or layering tops/accessories
+        } else if (weather.isCold() || temp <= 15.0) {
+            // Cool/chilly weather (<= 15°C, including 14°C):
+            // Standalone warmth 1 items (like slip dresses, summer shorts) are not weather appropriate
+            String nameAndSub = ((item.getName() != null ? item.getName() : "") + " " +
+                    (item.getSubCategory() != null ? item.getSubCategory() : "")).toLowerCase();
+            if (warmth <= 1 && (item.getCategory() == ClothingCategory.DRESSES || item.getCategory() == ClothingCategory.BOTTOMS || nameAndSub.contains("slip"))) {
+                return false;
+            }
             return warmth >= 2 || item.getCategory() == ClothingCategory.TOPS || item.getCategory() == ClothingCategory.ACCESSORIES;
         }
         return true;

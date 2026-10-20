@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, Upload, Camera, Sparkles, Loader2, Wand2, Check } from 'lucide-react';
 import type { ClothingCategory, ClothingItem } from '../../types/wardrobe';
 import { wardrobeApi } from '../../api/wardrobeApi';
@@ -24,6 +24,11 @@ export const AddClothingModal: React.FC<AddClothingModalProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [aiNotes, setAiNotes] = useState<string>('');
 
+  // Live Camera state
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
   // Form fields
   const [name, setName] = useState('');
   const [category, setCategory] = useState<ClothingCategory>('TOPS');
@@ -36,6 +41,74 @@ export const AddClothingModal: React.FC<AddClothingModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  const stopCamera = () => {
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  const setVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoRef.current = node;
+    if (node && mediaStreamRef.current) {
+      node.srcObject = mediaStreamRef.current;
+      node.play().catch((e) => console.warn('Video play error:', e));
+    }
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Camera access is not supported on this browser or platform. Please choose an image file.');
+        cameraInputRef.current?.click();
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+      mediaStreamRef.current = stream;
+      setIsCameraActive(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch((e) => console.warn('Video play error:', e));
+      }
+    } catch (err: unknown) {
+      console.warn('Camera access denied or unavailable:', err);
+      setIsCameraActive(false);
+      alert('Camera access was not granted or no webcam was detected. Please check browser permissions or select an image file.');
+    }
+  };
+
+  const takePhoto = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          const file = new File([blob], `wardrobe-snap-${Date.now()}.jpg`, { type: 'image/jpeg' });
+          handleFileChange(file);
+          stopCamera();
+        }
+      },
+      'image/jpeg',
+      0.92
+    );
+  };
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -131,6 +204,7 @@ export const AddClothingModal: React.FC<AddClothingModalProps> = ({
   };
 
   const resetForm = () => {
+    stopCamera();
     setSelectedFile(null);
     setPreviewUrl('');
     setName('');
@@ -163,7 +237,10 @@ export const AddClothingModal: React.FC<AddClothingModalProps> = ({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
             className="p-2 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-full transition-colors"
           >
             <X className="w-5 h-5" />
@@ -173,7 +250,42 @@ export const AddClothingModal: React.FC<AddClothingModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Image Upload Area */}
           <div>
-            {!previewUrl ? (
+            {isCameraActive ? (
+              <div className="relative rounded-2xl overflow-hidden bg-stone-950 aspect-4/3 max-h-80 w-full flex items-center justify-center border-2 border-roseGold-400 shadow-xl">
+                <video
+                  ref={setVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Live Indicator */}
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 bg-black/70 backdrop-blur-md rounded-full text-[10px] font-semibold text-white tracking-wider uppercase border border-white/10 shadow-sm">
+                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                  Live Camera
+                </div>
+
+                {/* Action Controls Overlay */}
+                <div className="absolute bottom-4 inset-x-0 flex items-center justify-center gap-3 px-4">
+                  <button
+                    type="button"
+                    onClick={stopCamera}
+                    className="px-4 py-2 bg-stone-900/80 hover:bg-stone-900 text-white rounded-full text-xs font-medium backdrop-blur-md transition-all border border-white/10 shadow-md"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={takePhoto}
+                    className="flex items-center gap-2 px-6 py-2.5 bg-roseGold-500 hover:bg-roseGold-600 active:scale-95 text-white rounded-full text-xs sm:text-sm font-semibold shadow-xl transition-all"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Snap Photo</span>
+                  </button>
+                </div>
+              </div>
+            ) : !previewUrl ? (
               <div className="border-2 border-dashed border-stone-200 hover:border-roseGold-400 rounded-2xl p-8 text-center bg-[#FAF8F5] transition-colors flex flex-col items-center justify-center gap-3">
                 <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-stone-600">
                   <Upload className="w-6 h-6 stroke-[1.5]" />
@@ -191,14 +303,14 @@ export const AddClothingModal: React.FC<AddClothingModalProps> = ({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 bg-white rounded-full border border-stone-300 text-xs font-medium text-stone-700 hover:bg-stone-50 shadow-sm"
+                    className="px-4 py-2 bg-white rounded-full border border-stone-300 text-xs font-medium text-stone-700 hover:bg-stone-50 shadow-sm transition-colors"
                   >
                     Browse Files
                   </button>
                   <button
                     type="button"
-                    onClick={() => cameraInputRef.current?.click()}
-                    className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-white rounded-full text-xs font-medium hover:bg-stone-800 shadow-sm"
+                    onClick={startCamera}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-stone-900 text-white rounded-full text-xs font-medium hover:bg-stone-800 shadow-sm transition-colors"
                   >
                     <Camera className="w-3.5 h-3.5" />
                     Take Photo

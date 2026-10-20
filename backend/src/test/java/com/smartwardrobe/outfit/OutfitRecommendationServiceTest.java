@@ -273,6 +273,45 @@ class OutfitRecommendationServiceTest {
     }
 
     @Test
+    @DisplayName("Office occasion at 14°C rejects silk slip dress and selects professional tops, trousers and outerwear")
+    void testOfficeOccasionAt14Degrees_RejectsSilkSlipDress() {
+        mockAiAdvice();
+        List<ClothingItem> wardrobe = List.of(
+                slipDress,
+                silkBlouse,
+                pleatedTrousers,
+                woolCoat,
+                stilettoPumps
+        );
+        when(clothingRepository.findAll()).thenReturn(wardrobe);
+
+        WeatherDto chillyWeather = WeatherDto.builder()
+                .temperature(14.0)
+                .isCold(false)
+                .isHot(false)
+                .condition("Overcast")
+                .build();
+        when(weatherService.getCurrentWeather(any(), any(), any())).thenReturn(chillyWeather);
+
+        OutfitGenerateRequest request = OutfitGenerateRequest.builder()
+                .occasion("OFFICE")
+                .city("Timisoara")
+                .overrideTemperature(14.0)
+                .build();
+
+        OutfitResponse response = outfitRecommendationService.generateOutfit(request, null);
+
+        assertNotNull(response);
+        boolean containsSlipDress = response.getItems().stream()
+                .anyMatch(i -> i.getName().toLowerCase().contains("slip"));
+        assertFalse(containsSlipDress, "Expected 14°C OFFICE outfit to reject silk slip dress");
+
+        boolean hasTrousers = response.getItems().stream()
+                .anyMatch(i -> i.getCategory() == ClothingCategory.BOTTOMS);
+        assertTrue(hasTrousers, "Expected professional trousers for 14°C office outfit");
+    }
+
+    @Test
     @DisplayName("Locked item in request is preserved in the generated outfit")
     void testLockedItem_IsPreservedInOutfit() {
         mockAiAdvice();

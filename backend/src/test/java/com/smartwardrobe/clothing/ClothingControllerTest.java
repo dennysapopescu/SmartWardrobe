@@ -112,7 +112,7 @@ class ClothingControllerTest {
     @Test
     @DisplayName("GET /api/clothes/{id} returns 404 with standardized ApiErrorResponse when item not found")
     void testGetClothingById_NotFound_Returns404() throws Exception {
-        when(clothingService.getItemById(eq(999L)))
+        when(clothingService.getItemById(eq(999L), any()))
                 .thenThrow(new ResourceNotFoundException("Clothing item with ID 999 was not found."));
 
         mockMvc.perform(get("/api/clothes/999"))
@@ -122,6 +122,20 @@ class ClothingControllerTest {
                 .andExpect(jsonPath("$.error").value("Not Found"))
                 .andExpect(jsonPath("$.message").value("Clothing item with ID 999 was not found."))
                 .andExpect(jsonPath("$.path").value("/api/clothes/999"));
+    }
+
+    @Test
+    @DisplayName("DELETE /api/clothes/{id} returns 403 Forbidden when deleting another user's item")
+    void testDeleteClothing_AccessDenied_Returns403() throws Exception {
+        org.mockito.Mockito.doThrow(new org.springframework.security.access.AccessDeniedException("You do not have permission to access or modify this clothing item."))
+                .when(clothingService).deleteItem(eq(888L), any());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/clothes/888"))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(403))
+                .andExpect(jsonPath("$.error").value("Forbidden"))
+                .andExpect(jsonPath("$.message").value("You do not have permission to access or modify this clothing item."));
     }
 
     @Test

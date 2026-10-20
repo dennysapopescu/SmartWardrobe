@@ -3,9 +3,9 @@
  * Runs 100% in-browser on the user's device (zero server cost, 100% free).
  */
 
-const defaultBase = typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
-  ? `http://${window.location.hostname}:8080`
-  : 'http://localhost:8080';
+const defaultBase = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? 'http://localhost:8080'
+  : '';
 const BACKEND_BASE = (import.meta.env.VITE_API_URL || defaultBase).replace(/\/+$/, '');
 
 export function getFullImageUrl(url?: string): string {

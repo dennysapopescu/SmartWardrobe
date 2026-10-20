@@ -9,6 +9,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.ByteArrayInputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,6 +23,8 @@ import java.util.UUID;
 @Service
 @Slf4j
 public class FileStorageService {
+
+    private static final long MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
     private final Path uploadLocation;
     private final Cloudinary cloudinary;
@@ -60,6 +65,7 @@ public class FileStorageService {
         if (file.isEmpty()) {
             throw new IllegalArgumentException("Cannot store empty file.");
         }
+        String extension = validateImage(file);
 
         if (isCloudinaryEnabled && cloudinary != null) {
             try {
@@ -80,14 +86,6 @@ public class FileStorageService {
         }
 
         // Local storage fallback
-        String originalFilename = file.getOriginalFilename();
-        String extension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            extension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        } else {
-            extension = ".png";
-        }
-
         String filename = UUID.randomUUID() + extension;
         Path targetPath = this.uploadLocation.resolve(filename);
 
@@ -100,6 +98,8 @@ public class FileStorageService {
     }
 
     public String storeBytes(byte[] data, String extension) {
+        validateImageBytes(data);
+        extension = normalizeImageExtension(extension);
         if (isCloudinaryEnabled && cloudinary != null) {
             try {
                 @SuppressWarnings("unchecked")
@@ -172,5 +172,48 @@ public class FileStorageService {
         } catch (IOException e) {
             return new byte[0];
         }
+    }
+
+    private String validateImage(MultipartFile file) {
+        if (file.getSize() > MAX_IMAGE_SIZE_BYTES) {
+            throw new IllegalArgumentException("Image must not exceed 10 MB.");
+        }
+        String extension = switch (file.getContentType() == null ? "" : file.getContentType().toLowerCase()) {
+            case "image/jpeg", "image/jpg" -> ".jpg";
+            case "image/png" -> ".png";
+            default -> throw new IllegalArgumentException("Only JPEG and PNG image uploads are allowed.");
+        };
+        try (InputStream inputStream = file.getInputStream()) {
+            validateImageContent(inputStream);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Could not read uploaded image.", e);
+        }
+        return extension;
+    }
+
+    private void validateImageBytes(byte[] data) {
+        if (data == null || data.length == 0 || data.length > MAX_IMAGE_SIZE_BYTES) {
+            throw new IllegalArgumentException("Image must be between 1 byte and 10 MB.");
+        }
+        validateImageContent(new ByteArrayInputStream(data));
+    }
+
+    private void validateImageContent(InputStream inputStream) {
+        try {
+            BufferedImage image = ImageIO.read(inputStream);
+            if (image == null || image.getWidth() <= 0 || image.getHeight() <= 0) {
+                throw new IllegalArgumentException("Uploaded file is not a valid image.");
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Uploaded file is not a valid image.", e);
+        }
+    }
+
+    private String normalizeImageExtension(String extension) {
+        return switch (extension == null ? "" : extension.toLowerCase()) {
+            case ".jpg", ".jpeg", "jpg", "jpeg" -> ".jpg";
+            case ".png", "png" -> ".png";
+            default -> throw new IllegalArgumentException("Only JPEG and PNG image uploads are allowed.");
+        };
     }
 }

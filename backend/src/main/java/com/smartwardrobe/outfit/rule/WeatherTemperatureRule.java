@@ -23,21 +23,27 @@ public class WeatherTemperatureRule implements OutfitScoringRule {
         String subCat = (item.getSubCategory() != null) ? item.getSubCategory().toLowerCase() : "";
         String text = name + " " + subCat;
 
-        if (weather.isCold() || weather.getTemperature() < 14.0) {
-            // Cold weather rewards warmth and penalizes thin or summer fabrics
+        double temp = weather.getTemperature();
+        boolean isChillyOrCold = weather.isCold() || temp <= 16.0;
+
+        if (isChillyOrCold) {
+            // Cold/chilly weather (<= 16°C, including 14°C): reward warmth, heavily penalize summer/slip pieces
             if (warmth >= 3) {
                 score += 40;
+            } else if (warmth == 1) {
+                score -= 80;
             }
+
             if (item.getCategory() == ClothingCategory.OUTERWEAR) {
                 score += 35;
             }
-            if (text.contains("wool") || text.contains("cashmere") || text.contains("fleece") || text.contains("boots")) {
+            if (text.contains("wool") || text.contains("cashmere") || text.contains("fleece") || text.contains("boots") || text.contains("trousers")) {
                 score += 30;
             }
-            if (text.contains("linen") || text.contains("sandal") || text.contains("sleeveless")) {
-                score -= 60;
+            if (text.contains("slip") || text.contains("linen") || text.contains("sandal") || text.contains("sleeveless") || text.contains("strappy")) {
+                score -= 80;
             }
-        } else if (weather.isHot() || weather.getTemperature() >= 25.0) {
+        } else if (weather.isHot() || temp >= 25.0) {
             // Hot weather rewards lightweight pieces and penalizes heavy outerwear/knitwear
             if (warmth == 1) {
                 score += 40;

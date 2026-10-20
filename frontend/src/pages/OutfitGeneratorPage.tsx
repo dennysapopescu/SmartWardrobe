@@ -80,8 +80,6 @@ export const OutfitGeneratorPage: React.FC<OutfitGeneratorPageProps> = ({
       const outfit = await wardrobeApi.generateOutfit(
         {
           occasion: activeOccasion,
-          latitude: 45.7537,
-          longitude: 21.2257,
           city: weather?.locationName || 'Timisoara',
           overrideTemperature: customTemp !== null ? customTemp : undefined,
         },
@@ -154,24 +152,30 @@ export const OutfitGeneratorPage: React.FC<OutfitGeneratorPageProps> = ({
                 )}
               </div>
               <h3 className="font-serif text-2xl font-bold text-stone-900 mt-0.5">
-                {activeTemp}°C &bull; {weather?.condition || 'Clear & Temperate'}
+                {activeTemp}°C &bull; {customTemp === 14 ? 'Crisp & Chilly' : customTemp === 28 ? 'Sunny & Warm' : customTemp === 3 ? 'Cold & Frosty' : (weather?.condition || 'Clear & Temperate')}
               </h3>
               <p className="text-xs text-stone-600 mt-1">
-                {weather?.clothingAdvice || 'Optimal weather for light layered styling.'}
+                {customTemp === 14
+                  ? 'Crisp autumn weather: tailored blazers, trousers, and knitwear layering recommended.'
+                  : customTemp === 28
+                  ? 'Warm summer weather: breathable fabrics and lightweight silhouettes recommended.'
+                  : customTemp === 3
+                  ? 'Cold winter weather: heavy wool coats, insulated boots, and warm layers required.'
+                  : (weather?.clothingAdvice || 'Optimal weather for versatile layered styling.')}
               </p>
             </div>
           </div>
 
-          {/* Quick Weather Simulator for Interview / Testing */}
+          {/* Seasonal Scenario Simulation */}
           <div className="flex flex-wrap items-center gap-2 bg-[#FAF8F5] p-2 rounded-2xl border border-stone-200/60">
-            <span className="text-[11px] font-medium text-stone-500 px-2">Test Weather:</span>
+            <span className="text-[11px] font-semibold tracking-wider uppercase text-stone-500 px-2">Climate Scenario:</span>
             <button
               onClick={() => setCustomTemp(null)}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                 customTemp === null ? 'bg-stone-900 text-white shadow-xs' : 'bg-white text-stone-700 hover:bg-stone-100'
               }`}
             >
-              Live ({weather ? Math.round(weather.temperature) : 20}°C)
+              📍 Live ({weather ? Math.round(weather.temperature) : 20}°C)
             </button>
             <button
               onClick={() => setCustomTemp(28)}

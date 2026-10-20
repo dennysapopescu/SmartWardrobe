@@ -1,5 +1,6 @@
 package com.smartwardrobe.outfit.rule;
 
+import com.smartwardrobe.clothing.ClothingCategory;
 import com.smartwardrobe.clothing.ClothingItem;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -41,11 +42,30 @@ public class OccasionStyleRule implements OutfitScoringRule {
                 break;
 
             case "OFFICE":
-                if ("OFFICE".equals(itemStyle)) score += 120;
-                else if ("ELEGANT".equals(itemStyle)) score += 70;
-                else if ("CASUAL".equals(itemStyle)) score += 40;
-                else if ("STREETWEAR".equals(itemStyle)) score += 10;
-                else if ("SPORTY".equals(itemStyle) || "PARTY".equals(itemStyle)) score -= 120;
+                String subCat = (item.getSubCategory() != null) ? item.getSubCategory().toLowerCase() : "";
+                String itemName = (item.getName() != null) ? item.getName().toLowerCase() : "";
+                String fullDesc = subCat + " " + itemName;
+
+                // Absolute disqualifiers for professional office / business workplace:
+                if (fullDesc.contains("slip") || fullDesc.contains("spaghetti") || fullDesc.contains("lingerie")
+                        || fullDesc.contains("biker") || fullDesc.contains("distressed") || fullDesc.contains("cutout")) {
+                    score -= 200;
+                } else if ("OFFICE".equals(itemStyle)) {
+                    score += 120;
+                } else if ("ELEGANT".equals(itemStyle)) {
+                    // For elegant items in an office context, favor structured tailored pieces over cocktail dresses
+                    if (item.getCategory() == ClothingCategory.DRESSES) {
+                        score += 30;
+                    } else {
+                        score += 70;
+                    }
+                } else if ("CASUAL".equals(itemStyle)) {
+                    score += 40;
+                } else if ("STREETWEAR".equals(itemStyle)) {
+                    score += 10;
+                } else if ("SPORTY".equals(itemStyle) || "PARTY".equals(itemStyle)) {
+                    score -= 120;
+                }
                 break;
 
             case "STREETWEAR":

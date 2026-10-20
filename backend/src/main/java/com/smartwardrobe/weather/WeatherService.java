@@ -35,13 +35,46 @@ public class WeatherService {
         this.baseUrl = baseUrl;
     }
 
+    private static final java.util.Map<String, double[]> CITY_COORDINATES = java.util.Map.ofEntries(
+            java.util.Map.entry("timisoara", new double[]{45.7537, 21.2257}),
+            java.util.Map.entry("timișoara", new double[]{45.7537, 21.2257}),
+            java.util.Map.entry("bucharest", new double[]{44.4268, 26.1025}),
+            java.util.Map.entry("bucuresti", new double[]{44.4268, 26.1025}),
+            java.util.Map.entry("bucurești", new double[]{44.4268, 26.1025}),
+            java.util.Map.entry("cluj-napoca", new double[]{46.7712, 23.6236}),
+            java.util.Map.entry("cluj", new double[]{46.7712, 23.6236}),
+            java.util.Map.entry("paris", new double[]{48.8566, 2.3522}),
+            java.util.Map.entry("london", new double[]{51.5074, -0.1278}),
+            java.util.Map.entry("milan", new double[]{45.4642, 9.1900}),
+            java.util.Map.entry("new york", new double[]{40.7128, -74.0060}),
+            java.util.Map.entry("vienna", new double[]{48.2082, 16.3738}),
+            java.util.Map.entry("berlin", new double[]{52.5200, 13.4050}),
+            java.util.Map.entry("rome", new double[]{41.9028, 12.4964}),
+            java.util.Map.entry("madrid", new double[]{40.4168, -3.7038}),
+            java.util.Map.entry("tokyo", new double[]{35.6762, 139.6503})
+    );
+
     public WeatherDto getCurrentWeather(Double latitude, Double longitude, String locationName) {
-        // Default coordinates: Timisoara, Romania if not provided
-        double lat = (latitude != null) ? latitude : 45.7537;
-        double lon = (longitude != null) ? longitude : 21.2257;
-        String city = (locationName != null && !locationName.trim().isEmpty()) ? locationName : "Timisoara";
+        String city = (locationName != null && !locationName.trim().isEmpty()) ? locationName.trim() : "Timisoara";
+
+        double lat;
+        double lon;
+        if (latitude != null && longitude != null) {
+            lat = latitude;
+            lon = longitude;
+        } else {
+            double[] resolved = CITY_COORDINATES.get(city.toLowerCase());
+            if (resolved != null) {
+                lat = resolved[0];
+                lon = resolved[1];
+            } else {
+                lat = (latitude != null) ? latitude : 45.7537;
+                lon = (longitude != null) ? longitude : 21.2257;
+            }
+        }
 
         String url = String.format(
+                java.util.Locale.US,
                 "%s?latitude=%.4f&longitude=%.4f&current=temperature_2m,apparent_temperature,precipitation,weather_code&timezone=auto",
                 baseUrl, lat, lon
         );

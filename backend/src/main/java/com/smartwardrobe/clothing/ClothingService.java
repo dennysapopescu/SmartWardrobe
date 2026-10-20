@@ -22,6 +22,7 @@ public class ClothingService {
 
     private final ClothingRepository clothingRepository;
     private final FileStorageService fileStorageService;
+    private final com.smartwardrobe.outfit.OutfitRepository outfitRepository;
 
     public PageResponse<ClothingResponse> getClothesPaginated(
             User user,
@@ -75,10 +76,15 @@ public class ClothingService {
         return getAllItems(null);
     }
 
-    public ClothingResponse getItemById(Long id) {
+    public ClothingResponse getItemById(Long id, User user) {
         ClothingItem item = clothingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Clothing item with ID " + id + " was not found."));
+        validateOwnership(item, user);
         return ClothingResponse.fromEntity(item);
+    }
+
+    public ClothingResponse getItemById(Long id) {
+        return getItemById(id, null);
     }
 
     public List<ClothingResponse> getItemsByCategory(ClothingCategory category) {
@@ -136,9 +142,11 @@ public class ClothingService {
     }
 
     @Transactional
-    public ClothingResponse updateItem(Long id, ClothingRequest request) {
+    public ClothingResponse updateItem(Long id, ClothingRequest request, User user) {
         ClothingItem item = clothingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Clothing item with ID " + id + " was not found."));
+
+        validateOwnership(item, user);
 
         item.setName(request.getName());
         item.setCategory(request.getCategory());
@@ -156,19 +164,46 @@ public class ClothingService {
     }
 
     @Transactional
-    public ClothingResponse toggleFavorite(Long id) {
+    public ClothingResponse updateItem(Long id, ClothingRequest request) {
+        return updateItem(id, request, null);
+    }
+
+    @Transactional
+    public ClothingResponse toggleFavorite(Long id, User user) {
         ClothingItem item = clothingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Clothing item with ID " + id + " was not found."));
+
+        validateOwnership(item, user);
+
         item.setFavorite(!item.isFavorite());
         return ClothingResponse.fromEntity(clothingRepository.save(item));
     }
 
     @Transactional
+    public ClothingResponse toggleFavorite(Long id) {
+        return toggleFavorite(id, null);
+    }
+
+    @Transactional
+    public void deleteItem(Long id, User user) {
+        ClothingItem item = clothingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Clothing item with ID " + id + " was not found."));
+
+        validateOwnership(item, user);
+
+        outfitRepository.deleteOutfitItemAssociations(id);
+        clothingRepository.delete(item);
+    }
+
+    @Transactional
     public void deleteItem(Long id) {
-        if (!clothingRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Clothing item with ID " + id + " was not found.");
+        deleteItem(id, null);
+    }
+
+    private void validateOwnership(ClothingItem item, User user) {
+        if (user != null && item.getUser() != null && !item.getUser().getId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("You do not have permission to access or modify this clothing item.");
         }
-        clothingRepository.deleteById(id);
     }
 
     public long countItems() {

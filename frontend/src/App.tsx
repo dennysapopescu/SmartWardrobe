@@ -25,7 +25,7 @@ function AppContent() {
     return localStorage.getItem('smart_wardrobe_gemini_key') || '';
   });
   const [selectedCity, setSelectedCity] = useState<string>(() => {
-    return localStorage.getItem('smart_wardrobe_city') || 'Timișoara';
+    return localStorage.getItem('smart_wardrobe_city') || 'Timisoara';
   });
 
   const loadAllClothes = useCallback(async () => {
@@ -55,6 +55,7 @@ function AppContent() {
         'New York': { lat: 40.7128, lon: -74.0060 },
         'Vienna': { lat: 48.2082, lon: 16.3738 },
         'Timisoara': { lat: 45.7537, lon: 21.2257 },
+        'Timișoara': { lat: 45.7537, lon: 21.2257 },
         'Bucharest': { lat: 44.4268, lon: 26.1025 },
         'Cluj-Napoca': { lat: 46.7712, lon: 23.6236 },
       };

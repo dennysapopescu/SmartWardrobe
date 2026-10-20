@@ -39,7 +39,7 @@ public class OutfitController {
             @RequestBody CustomOutfitReviewRequest request,
             @RequestHeader(value = "X-Gemini-Api-Key", required = false) String clientApiKey
     ) {
-        return ResponseEntity.ok(outfitService.reviewCustomOutfit(request, clientApiKey));
+        return ResponseEntity.ok(outfitService.reviewCustomOutfit(request, clientApiKey, currentUser));
     }
 
     @Operation(summary = "Save outfit to Lookbook", description = "Store a curated outfit draft into the permanent lookbook collection")
@@ -62,13 +62,19 @@ public class OutfitController {
     }
 
     @PatchMapping("/{id}/favorite")
-    public ResponseEntity<OutfitResponse> toggleFavorite(@PathVariable Long id) {
-        return ResponseEntity.ok(outfitService.toggleFavorite(id));
+    public ResponseEntity<OutfitResponse> toggleFavorite(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        return ResponseEntity.ok(outfitService.toggleFavorite(id, currentUser));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteOutfit(@PathVariable Long id) {
-        outfitService.deleteOutfit(id);
+    public ResponseEntity<Void> deleteOutfit(
+            @PathVariable Long id,
+            @AuthenticationPrincipal User currentUser
+    ) {
+        outfitService.deleteOutfit(id, currentUser);
         return ResponseEntity.noContent().build();
     }
 }
