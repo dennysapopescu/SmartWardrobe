@@ -1,9 +1,13 @@
 # Application Screenshots
 
-Place your exported portfolio screenshots in this directory:
+Screenshots showcased in the project's root `README.md`:
 
-- `closet.png` — Digital Closet overview (filtered by categories and search)
-- `add-clothing.png` — Modal demonstrating image upload and multimodal AI auto-tagging
-- `outfit-generator.png` — Outfit recommendation screen with weather context and occasion chips
-- `recommendation-result.png` — Generated outfit cards with style explanation and color harmony
-- `lookbook.png` — Saved lookbook collection and favorites
+- `0_login.png` — Secure JWT Authentication, Registration, and Instant 1-Click Demo Login
+- `1_wardrobe.png` — Digital Closet Studio with Category Filtering and Full-Text Search
+- `2_additem.png` — Modal demonstrating live camera capture, background removal, and Gemini AI auto-tagging
+- `3_generate.png` — Outfit recommendation screen with meteorological forecast presets and occasion chips
+- `4_generated.png` — Scored ensemble with color harmony rating and Gemini AI stylist rationale
+- `5_saveboard.png` — Pinterest-style editorial flat lay moodboard and lookbook save action
+- `6_create_your_own.png` — Interactive custom outfit studio with slot builder and warmth tracking
+- `7_lookbook.png` — Saved lookbook collection and persistent outfit management
+

@@ -33,13 +33,21 @@ Algorithmic outfit recommendation requires balancing deterministic physical cons
 
 ## Application Showcase
 
-| Digital Closet Studio | Context-Aware Outfit Generator |
+| 1. Authentication & Demo Access | 2. Digital Closet Studio |
 | :---: | :---: |
-| ![Digital Closet](docs/screenshots/closet.png) <br> *Browse, filter by category, and search wardrobe items with server-side pagination* | ![Outfit Generator](docs/screenshots/outfit-generator.png) <br> *Real-time meteorological forecasts & occasion presets* |
+| ![Authentication](docs/screenshots/0_login.png) <br> *Secure JWT login, registration, and instant 1-click recruiter demo access* | ![Digital Closet](docs/screenshots/1_wardrobe.png) <br> *Browse, filter by category, and search wardrobe items with server-side pagination* |
 
-| Editorial Recommendation & AI Advice | Lookbook & Flat Lay Moodboard |
+| 3. Smart Item Ingestion & AI Tagging | 4. Context-Aware Outfit Generator |
 | :---: | :---: |
-| ![Recommendation Result](docs/screenshots/recommendation-result.png) <br> *Scored ensemble with color harmony & Gemini multimodal stylist review* | ![Saved Lookbook](docs/screenshots/lookbook.png) <br> *Curated collections and Pinterest-style flat lay exports* |
+| ![Add Clothing Item](docs/screenshots/2_additem.png) <br> *Direct camera capture/upload with client-side canvas segmentation & Gemini AI auto-tagging* | ![Outfit Generator](docs/screenshots/3_generate.png) <br> *Real-time meteorological forecasts & occasion presets (Office, Casual, Formal, Sport)* |
+
+| 5. Scored Recommendation & AI Review | 6. Editorial Flat Lay Moodboard |
+| :---: | :---: |
+| ![Recommendation Result](docs/screenshots/4_generated.png) <br> *Deterministic style scoring, color harmony validation & Gemini AI stylist critique* | ![Flat Lay Moodboard](docs/screenshots/5_saveboard.png) <br> *High-fashion flat lay collage on white studio background with 1200x1500px PNG export* |
+
+| 7. Custom Outfit Studio ("Create My Own") | 8. Curated Lookbook Collection |
+| :---: | :---: |
+| ![Custom Outfit Studio](docs/screenshots/6_create_your_own.png) <br> *Interactive slot builder with live warmth tracking, palette balance, and AI feedback* | ![Saved Lookbook](docs/screenshots/7_lookbook.png) <br> *Curated collections and persistent outfit management in PostgreSQL* |
 
 ---
 
